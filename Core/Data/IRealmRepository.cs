@@ -1,4 +1,5 @@
 using RealmPeek.Core.Models;
+using Realms;
 
 namespace RealmPeek.Core.Data
 {
@@ -10,7 +11,8 @@ namespace RealmPeek.Core.Data
     {
         // Query operations
         List<BeatmapSetModel> LoadAllSets();
-        BeatmapSetModel? FindSet(Guid id);
+        BeatmapSetModel? FindSetByID(Guid id);
+        BeatmapModel? FindBeatmapByQuery(string query, params QueryArgument[] args);
 
         // Diagnostic operations
         DiagnosticResult RunDiagnostics();

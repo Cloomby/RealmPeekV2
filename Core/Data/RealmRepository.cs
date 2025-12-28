@@ -1,3 +1,4 @@
+using System;
 using RealmPeek.Core.Models;
 using RealmPeek.Core.Schema;
 using Realms;
@@ -20,13 +21,34 @@ namespace RealmPeek.Core.Data
 
         public List<BeatmapSetModel> LoadAllSets()
         {
-            return _realm.All<BeatmapSet>().ToList().Select(MapToModel).ToList();
+            return _realm.All<BeatmapSet>().ToList().Select(MapSetToModel).ToList();
         }
 
-        public BeatmapSetModel? FindSet(Guid id)
+        public BeatmapSetModel? FindSetByID(Guid id)
         {
             var set = _realm.Find<BeatmapSet>(id);
-            return set != null ? MapToModel(set) : null;
+            return set != null ? MapSetToModel(set) : null;
+        }
+
+        //public BeatmapSetModel? FindSetByQuery(Guid id)
+        //{
+        //    var set = _realm.All<BeatmapSet>();
+        //    return set != null ? MapSetToModel(set) : null;
+        //}
+
+        public BeatmapModel? FindBeatmapByQuery(string query, params QueryArgument[] args)
+        {
+            Beatmap beatmap;
+            try
+            {
+                beatmap = _realm.All<Beatmap>().Filter(query, args).FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"FindBeatmapByQuery failed! Error: {ex.Message}");
+                return null;
+            }
+            return beatmap != null ? MapBeatmapToModel(beatmap) : null;
         }
 
         public DiagnosticResult RunDiagnostics()
@@ -65,34 +87,58 @@ namespace RealmPeek.Core.Data
         }
 
         // Map Realm objects to domain models
-        private static BeatmapSetModel MapToModel(BeatmapSet set)
+        private static BeatmapSetModel MapSetToModel(BeatmapSet BeatmapSet)
         {
-            var firstMap = set.Beatmaps.FirstOrDefault();
+            var firstMap = BeatmapSet.Beatmaps.FirstOrDefault();
             var metadata = firstMap?.Metadata;
 
             return new BeatmapSetModel
             {
-                ID = set.ID,
-                OnlineID = set.OnlineID,
-                Status = (Status)set.Status,
+                ID = BeatmapSet.ID,
+                OnlineID = BeatmapSet.OnlineID,
+                Status = (Status)BeatmapSet.Status,
                 Title = metadata?.Title ?? "[Unknown]",
                 Artist = metadata?.Artist ?? "[Unknown]",
                 Creator = metadata?.Author?.Username ?? "[Unknown]",
-                DateRanked = set.DateRanked,
-                DateSubmitted = set.DateSubmitted,
-                DateAdded = set.DateAdded,
-                Maps = set
-                    .Beatmaps.Select(m => new BeatmapModel
+                DateRanked = BeatmapSet.DateRanked,
+                DateSubmitted = BeatmapSet.DateSubmitted,
+                DateAdded = BeatmapSet.DateAdded,
+                Maps = BeatmapSet
+                    .Beatmaps.Select(beatmap =>
                     {
-                        ID = m.ID,
-                        OnlineID = m.OnlineID,
-                        DifficultyName = m.DifficultyName ?? "",
-                        MD5Hash = m.MD5Hash ?? "",
-                        StarRating = m.StarRating,
-                        Length = m.Length,
-                        BPM = m.BPM,
+                        return MapBeatmapToModel(beatmap);
                     })
                     .ToList(),
+            };
+        }
+
+        // Map Realm objects to domain models
+        private static BeatmapModel MapBeatmapToModel(Beatmap beatmap)
+        {
+            return new BeatmapModel
+            {
+                ID = beatmap.ID,
+                DifficultyName = beatmap.DifficultyName ?? "",
+                Ruleset = beatmap.Ruleset,
+                Difficulty = beatmap.Difficulty,
+                Metadata = beatmap.Metadata,
+                UserSettings = beatmap.UserSettings,
+                BeatmapSet = beatmap.BeatmapSet,
+                Status = beatmap.Status,
+                OnlineID = beatmap.OnlineID,
+                Length = beatmap.Length,
+                BPM = beatmap.BPM,
+                Hash = beatmap.Hash,
+                StarRating = beatmap.StarRating,
+                MD5Hash = beatmap.MD5Hash ?? "",
+                OnlineMD5Hash = beatmap.OnlineMD5Hash ?? "",
+                LastLocalUpdate = beatmap.LastLocalUpdate,
+                LastOnlineUpdate = beatmap.LastOnlineUpdate,
+                Hidden = beatmap.Hidden,
+                TotalObjectCount = beatmap.TotalObjectCount,
+                LastPlayed = beatmap.LastPlayed,
+                BeatDivisor = beatmap.BeatDivisor,
+                EditorTimestamp = beatmap.EditorTimestamp,
             };
         }
     }
