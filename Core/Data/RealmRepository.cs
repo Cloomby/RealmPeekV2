@@ -1,5 +1,5 @@
 using RealmPeek.Core.Models;
-using RealmPeek.Schema;
+using RealmPeek.Core.Schema;
 using Realms;
 
 namespace RealmPeek.Core.Data
@@ -10,25 +10,17 @@ namespace RealmPeek.Core.Data
     public class RealmRepository : IRealmRepository
     {
         private readonly Realm _realm;
-        private readonly bool _isReadOnly;
 
-        public RealmRepository(string path, bool readOnly = true)
+        public RealmRepository(string path)
         {
-            var config = new RealmConfiguration(path)
-            {
-                IsReadOnly = readOnly,
-                SchemaVersion = 51
-            };
+            // Don't use IsReadOnly - causes migration issues
+            var config = new RealmConfiguration(path) { SchemaVersion = 51 };
             _realm = Realm.GetInstance(config);
-            _isReadOnly = readOnly;
         }
 
         public List<BeatmapSetModel> LoadAllSets()
         {
-            return _realm.All<BeatmapSet>()
-                .ToList()
-                .Select(MapToModel)
-                .ToList();
+            return _realm.All<BeatmapSet>().ToList().Select(MapToModel).ToList();
         }
 
         public BeatmapSetModel? FindSet(Guid id)
@@ -42,9 +34,7 @@ namespace RealmPeek.Core.Data
             var result = new DiagnosticResult();
 
             // Count orphaned beatmaps
-            result.OrphanedBeatmaps = _realm.All<Beatmap>()
-                .ToList()
-                .Count(b => b.BeatmapSet == null);
+            result.OrphanedBeatmaps = _realm.All<Beatmap>().ToList().Count(b => b.BeatmapSet == null);
 
             // Count reverse orphans
             var allSets = _realm.All<BeatmapSet>().ToList();
@@ -66,9 +56,6 @@ namespace RealmPeek.Core.Data
 
         public void ExecuteWrite(Action<IWriteContext> action)
         {
-            if (_isReadOnly)
-                throw new InvalidOperationException("Repository is in read-only mode");
-
             _realm.Write(() => action(new WriteContext(_realm)));
         }
 
@@ -94,16 +81,18 @@ namespace RealmPeek.Core.Data
                 DateRanked = set.DateRanked,
                 DateSubmitted = set.DateSubmitted,
                 DateAdded = set.DateAdded,
-                Maps = set.Beatmaps.Select(m => new BeatmapModel
-                {
-                    ID = m.ID,
-                    OnlineID = m.OnlineID,
-                    DifficultyName = m.DifficultyName ?? "",
-                    MD5Hash = m.MD5Hash ?? "",
-                    StarRating = m.StarRating,
-                    Length = m.Length,
-                    BPM = m.BPM
-                }).ToList()
+                Maps = set
+                    .Beatmaps.Select(m => new BeatmapModel
+                    {
+                        ID = m.ID,
+                        OnlineID = m.OnlineID,
+                        DifficultyName = m.DifficultyName ?? "",
+                        MD5Hash = m.MD5Hash ?? "",
+                        StarRating = m.StarRating,
+                        Length = m.Length,
+                        BPM = m.BPM,
+                    })
+                    .ToList(),
             };
         }
     }

@@ -11,3 +11,8 @@ docs/
 
 FodyWeavers.xml
 FodyWeavers.xsd
+
+data/realm/*
+data/cache/*
+data/downloads/*
+data/backfill

@@ -1,7 +1,6 @@
 using RealmPeek.Core.API;
 using RealmPeek.Core.Infrastructure;
 using RealmPeek.Core.Models;
-using RealmPeek.Core.Schema;
 
 namespace RealmPeek.Core.Services
 {
@@ -34,26 +33,22 @@ namespace RealmPeek.Core.Services
             Console.WriteLine($"Scanning {sets.Count} sets with {MAX_PARALLELISM}x Concurrency...");
 
             // Process in batches with parallelism
-            await Parallel.ForEachAsync(
-                sets.Chunk(BATCH_SIZE),
-                new ParallelOptions { MaxDegreeOfParallelism = MAX_PARALLELISM },
-                async (batch, _) =>
+            await Parallel.ForEachAsync(sets.Chunk(BATCH_SIZE), new ParallelOptions { MaxDegreeOfParallelism = MAX_PARALLELISM }, async (batch, _) =>
+            {
+                await ProcessBatch(batch.ToList(), plan);
+
+                // Save cache periodically
+                if (Interlocked.Increment(ref batchesSinceSave) >= 10)
                 {
-                    await ProcessBatch(batch.ToList(), plan);
-
-                    // Save cache periodically
-                    if (Interlocked.Increment(ref batchesSinceSave) >= 10)
-                    {
-                        Interlocked.Exchange(ref batchesSinceSave, 0);
-                        _cache.Save();
-                    }
-
-                    // Update progress
-                    int current = Interlocked.Add(ref processedCount, batch.Length);
-                    if (current % 100 == 0 || current == total)
-                        Console.Write($"\rProgress: {current} / {total} ({(double)current / total:P0})   ");
+                    Interlocked.Exchange(ref batchesSinceSave, 0);
+                    _cache.Save();
                 }
-            );
+
+                // Update progress
+                int current = Interlocked.Add(ref processedCount, batch.Length);
+                if (current % 100 == 0 || current == total)
+                    Console.Write($"\rProgress: {current} / {total} ({(double)current / total:P0})   ");
+            });
 
             _cache.Save();
             Console.WriteLine("\nScan Complete.");
@@ -98,7 +93,7 @@ namespace RealmPeek.Core.Services
                 // Cache invalid results (404s)
                 foreach (var neededId in mapIdsNeeded.Where(id => !_cache.Contains(id)))
                 {
-                    var dummy = new ApiBeatmap { Id = neededId, BeatmapSet = null };
+                    var dummy = new BeatmapData { Id = neededId, IsValid = false, BeatmapSet = null };
                     _cache.Add(neededId, dummy);
                 }
             }
@@ -127,14 +122,14 @@ namespace RealmPeek.Core.Services
             }
 
             // Invalid (doesn't exist online)
-            if (onlineMap.BeatmapSet == null)
+            if (!onlineMap.IsValid || onlineMap.BeatmapSet == null)
             {
                 plan.ToDelete.Add(set);
                 return;
             }
 
             // Valid - check for fixes
-            var onlineStatus = StatusParser.Parse(onlineMap.BeatmapSet.Status ?? "");
+            var onlineStatus = StatusParser.Parse(onlineMap.BeatmapSet.Status);
 
             // Status fix
             if (set.Status != onlineStatus)
@@ -154,7 +149,7 @@ namespace RealmPeek.Core.Services
 
             // MD5 hash check (outdated)
             var matchingMap = set.Maps.FirstOrDefault(m => m.OnlineID == onlineMap.Id);
-            if (matchingMap != null && matchingMap.MD5Hash != onlineMap.MD5Hash)
+            if (matchingMap != null && !string.IsNullOrEmpty(onlineMap.MD5Hash) && matchingMap.MD5Hash != onlineMap.MD5Hash)
                 plan.ToUpdate.Add(set);
         }
 

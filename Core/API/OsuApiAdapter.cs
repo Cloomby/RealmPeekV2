@@ -2,18 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using dotenv.net;
 using osu.NET;
 using osu.NET.Authorization;
 using osu.NET.Enums;
-using osu.NET.Models;
+using osu.NET.Models.Beatmaps;
 
 namespace RealmPeek.Core.API
 {
     /// <summary>
     /// Adapter for osu.NET library by minisbett
     /// https://github.com/minisbett/osu.NET
-    ///
-    /// Install via: dotnet add package osu.NET
     /// </summary>
     public class OsuApiAdapter : IDisposable
     {
@@ -22,8 +21,15 @@ namespace RealmPeek.Core.API
 
         public OsuApiAdapter()
         {
-            // Create access token provider using client credentials
-            OsuClientAccessTokenProvider provider = OsuClientAccessTokenProvider.FromEnvironmentVariables("OSU_CLIENT_ID", "OSU_CLIENT_SECRET");
+            // 4. Now populate the static fields.
+            // Throwing an exception is better than "??" if these are critical for the app to run.
+            var clientId = Environment.GetEnvironmentVariable("CLIENT_ID") ?? throw new InvalidOperationException("OSU_CLIENT_ID is missing from environment.");
+            var clientSecret = Environment.GetEnvironmentVariable("CLIENT_SECRET") ?? throw new InvalidOperationException("OSU_CLIENT_SECRET is missing from environment.");
+
+            Console.WriteLine(clientId, clientSecret);
+
+            // Create access token provider from environment variables
+            OsuClientAccessTokenProvider provider = new OsuClientAccessTokenProvider(clientId, clientSecret);
 
             // Create client (null logger for standalone use)
             _client = new OsuApiClient(provider, null);
@@ -37,15 +43,22 @@ namespace RealmPeek.Core.API
         {
             try
             {
-                // Test authentication with a simple request
-                // peppy's user ID
-                var result = await _client.GetUserAsync("peppy");
+                // Test authentication with simple request
+                var result = await _client.GetUserAsync("Marble Soda");
 
                 result.Match(
                     value =>
                     {
-                        Console.WriteLine($"✅ Authenticated with osu.NET (tested with user: {value.Username})");
-                        _isInitialized = true;
+                        if (value != null)
+                        {
+                            Console.WriteLine($"✅ Authenticated with osu.NET (Found test user: {value.Username})");
+                            _isInitialized = true;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"❌ Authentication failed: No user returned");
+                            _isInitialized = false;
+                        }
                     },
                     error =>
                     {
@@ -66,7 +79,7 @@ namespace RealmPeek.Core.API
 
         /// <summary>
         /// Get beatmaps by IDs using osu.NET
-        /// NOTE: osu.NET DOES support bulk queries via GetBeatmapsAsync(ids[])
+        /// API: GET /beatmaps?ids[]=X&ids[]=Y&ids[]=Z
         /// </summary>
         public async Task<List<BeatmapData>> GetBeatmapsAsync(IEnumerable<int> ids)
         {
@@ -85,17 +98,18 @@ namespace RealmPeek.Core.API
 
             try
             {
-                // osu.NET supports bulk beatmap queries!
-                // API: GET /beatmaps?ids[]=X&ids[]=Y&ids[]=Z
+                // osu.NET supports bulk beatmap queries
                 var apiResult = await _client.GetBeatmapsAsync(validIds.ToArray());
 
                 apiResult.Match(
                     beatmaps =>
                     {
-                        // Convert osu.NET models to our internal models
-                        foreach (var beatmap in beatmaps)
+                        if (beatmaps != null)
                         {
-                            results.Add(ConvertToOurModel(beatmap));
+                            foreach (var beatmap in beatmaps)
+                            {
+                                results.Add(ConvertToOurModel(beatmap));
+                            }
                         }
                     },
                     error =>
@@ -120,9 +134,10 @@ namespace RealmPeek.Core.API
         }
 
         /// <summary>
-        /// Convert osu.NET Beatmap to our internal model
+        /// Convert osu.NET BeatmapExtended to our internal model
+        /// Note: beatmap.Set is type BeatmapSet, but might be BeatmapSetExtended at runtime
         /// </summary>
-        private BeatmapData ConvertToOurModel(Beatmap beatmap)
+        private static BeatmapData ConvertToOurModel(BeatmapExtended beatmap)
         {
             return new BeatmapData
             {
@@ -130,34 +145,85 @@ namespace RealmPeek.Core.API
                 IsValid = true,
                 MD5Hash = beatmap.Checksum,
                 BeatmapSet =
-                    beatmap.Beatmapset != null
+                    beatmap.Set != null
                         ? new BeatmapSetData
                         {
-                            Id = beatmap.BeatmapsetId,
-                            Status = ConvertStatus(beatmap.Status),
-                            LastUpdated = beatmap.Beatmapset.LastUpdated,
-                            RankedDate = beatmap.Beatmapset.RankedDate,
-                            SubmittedDate = beatmap.Beatmapset.SubmittedDate,
-                            Title = beatmap.Beatmapset.Title ?? "",
-                            Artist = beatmap.Beatmapset.Artist ?? "",
-                            Creator = beatmap.Beatmapset.Creator ?? "",
+                            // SetId is on Beatmap base class
+                            Id = beatmap.SetId,
+                            // Status is on BeatmapSet
+                            Status = ConvertStatus(beatmap.Set.Status),
+                            // Try to get dates - check if it's actually BeatmapSetExtended
+                            LastUpdated = GetLastUpdated(beatmap.Set),
+                            RankedDate = GetRankedDate(beatmap.Set),
+                            SubmittedDate = GetSubmittedDate(beatmap.Set),
+                            // Basic properties are on BeatmapSet
+                            Title = beatmap.Set.Title ?? "",
+                            Artist = beatmap.Set.Artist ?? "",
+                            Creator = beatmap.Set.CreatorName ?? "",
                         }
                         : null,
             };
         }
 
         /// <summary>
-        /// Convert osu.NET BeatmapStatus to string for our Status enum
+        /// Get LastUpdated - only available on BeatmapSetExtended
         /// </summary>
-        private string ConvertStatus(string status)
+        private static DateTimeOffset GetLastUpdated(BeatmapSet set)
         {
-            // osu.NET returns status as string: "ranked", "loved", etc.
-            return status.ToLowerInvariant();
+            // Check if it's actually BeatmapSetExtended
+            if (set is BeatmapSetExtended extended)
+                return extended.LastUpdated;
+
+            // Fallback to current time if not extended
+            return DateTimeOffset.Now;
+        }
+
+        /// <summary>
+        /// Get RankedDate - only available on BeatmapSetExtended
+        /// </summary>
+        private static DateTimeOffset? GetRankedDate(BeatmapSet set)
+        {
+            // Check if it's actually BeatmapSetExtended
+            if (set is BeatmapSetExtended extended)
+                return extended.RankedDate;
+
+            return null;
+        }
+
+        /// <summary>
+        /// Get SubmittedDate - only available on BeatmapSetExtended
+        /// </summary>
+        private static DateTimeOffset? GetSubmittedDate(BeatmapSet set)
+        {
+            // Check if it's actually BeatmapSetExtended
+            if (set is BeatmapSetExtended extended)
+                return extended.SubmittedDate;
+
+            return null;
+        }
+
+        /// <summary>
+        /// Convert osu.NET RankedStatus enum to string
+        /// </summary>
+        private static string ConvertStatus(RankedStatus status)
+        {
+            return status switch
+            {
+                RankedStatus.Ranked => "ranked",
+                RankedStatus.Approved => "approved",
+                RankedStatus.Qualified => "qualified",
+                RankedStatus.Loved => "loved",
+                RankedStatus.Graveyard => "graveyard",
+                RankedStatus.WIP => "wip",
+                RankedStatus.Pending => "pending",
+                _ => "unknown",
+            };
         }
 
         public void Dispose()
         {
-            _client?.Dispose();
+            // OsuApiClient doesn't implement IDisposable
+            // No-op for interface compatibility
         }
     }
 

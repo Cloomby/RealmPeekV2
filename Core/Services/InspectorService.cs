@@ -1,4 +1,4 @@
-using RealmPeek.Schema;
+using RealmPeek.Core.Schema;
 using Realms;
 
 namespace RealmPeek.Core.Services
@@ -39,7 +39,7 @@ namespace RealmPeek.Core.Services
 
             Console.WriteLine($"  ID:              {set.ID}");
             Console.WriteLine($"  OnlineID:        {set.OnlineID}");
-            Console.WriteLine($"  Status:          {(Status)set.Status} ({set.Status})");
+            Console.WriteLine($"  Status:          {set.Status} ({set.Status})");
             Console.WriteLine($"  DateAdded:       {set.DateAdded}");
             Console.WriteLine($"  DateSubmitted:   {set.DateSubmitted?.ToString() ?? "NULL"}");
             Console.WriteLine($"  DateRanked:      {set.DateRanked?.ToString() ?? "NULL"}");
@@ -92,7 +92,7 @@ namespace RealmPeek.Core.Services
             Console.WriteLine($"  ID:               {map.ID}");
             Console.WriteLine($"  OnlineID:         {map.OnlineID}");
             Console.WriteLine($"  DifficultyName:   {map.DifficultyName}");
-            Console.WriteLine($"  Status:           {(Status)map.Status} ({map.Status})");
+            Console.WriteLine($"  Status:           {map.Status} ({map.Status})");
             Console.WriteLine($"  Hash:             {map.Hash ?? "NULL"}");
             Console.WriteLine($"  MD5Hash:          {map.MD5Hash ?? "NULL"}");
             Console.WriteLine($"  OnlineMD5Hash:    {map.OnlineMD5Hash ?? "NULL"}");
@@ -109,7 +109,7 @@ namespace RealmPeek.Core.Services
                 Console.WriteLine($"\n  Parent Set:");
                 Console.WriteLine($"    ID:       {map.BeatmapSet.ID}");
                 Console.WriteLine($"    OnlineID: {map.BeatmapSet.OnlineID}");
-                Console.WriteLine($"    Status:   {(Status)map.BeatmapSet.Status}");
+                Console.WriteLine($"    Status:   {map.BeatmapSet.Status}");
             }
             else
             {

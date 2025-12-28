@@ -5,15 +5,15 @@ using RealmPeek.Core.Infrastructure;
 using RealmPeek.Core.Models;
 using RealmPeek.Core.Services;
 
-namespace RealmPeek.Cli
+namespace RealmPeek.CLI
 {
     class Program
     {
         const string REALM_FILE = @".\data\realm\client.realm";
         const string OUTPUT_REALM_FILE = @".\data\realm\client_modified.realm";
-        const string CACHE_FILE = @".\data\api_cache.json";
-        const string DOWNLOAD_RESULT_FILE = @".\data\downloads.txt";
-        const string FAILED_DOWNLOADS_FILE = @".\data\failed_downloads.txt";
+        const string CACHE_FILE = @".\data\cache\api_cache.json";
+        const string DOWNLOAD_RESULT_FILE = @".\data\downloads\downloads.txt";
+        const string FAILED_DOWNLOADS_FILE = @".\data\downloads\failed_downloads.txt";
 
         static async Task Main(string[] args)
         {
@@ -54,7 +54,7 @@ namespace RealmPeek.Cli
         {
             Console.WriteLine("\nSelect mode:");
             Console.WriteLine("  [ENTER]    - Normal scan & fix");
-            Console.WriteLine("  HASH_FIX   - Copy hashes from corrupted DB to good DB");
+            Console.WriteLine("  HASH       - Copy hashes from corrupted DB to good DB");
             Console.WriteLine("  DOWNLOAD   - Download only (if downloads.txt exists)");
             Console.WriteLine("  INSPECT    - Inspect a specific beatmap/set by GUID");
             Console.Write("\n> ");
@@ -133,7 +133,7 @@ namespace RealmPeek.Cli
             List<BeatmapSetModel> sets;
             DiagnosticResult diagnostics;
 
-            using (var repo = new RealmRepository(realmPath, readOnly: true))
+            using (var repo = new RealmRepository(realmPath))
             {
                 sets = repo.LoadAllSets();
                 Console.WriteLine($"Loaded {sets.Count} beatmap sets.");

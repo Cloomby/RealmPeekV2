@@ -15,4 +15,14 @@
   <ItemGroup>
     <EditorConfigFiles Include=".csharpierrc.json" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="data\cache\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update=".env">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

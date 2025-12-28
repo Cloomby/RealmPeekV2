@@ -2,37 +2,18 @@ using Realms;
 
 namespace RealmPeek.Core.Schema
 {
-    /// <summary>
-    /// Difficulty settings for a beatmap (CS, AR, OD, HP)
-    /// Based on: osu.Game/Beatmaps/BeatmapDifficulty.cs
-    /// </summary>
-    [MapTo("BeatmapDifficulty")]
     public class BeatmapDifficulty : EmbeddedObject
     {
-        /// <summary>
-        /// HP drain rate (health)
-        /// </summary>
-        public float DrainRate { get; set; } = 5;
+        public float DrainRate { get; set; }
 
-        /// <summary>
-        /// Circle size
-        /// </summary>
-        public float CircleSize { get; set; } = 5;
+        public float CircleSize { get; set; }
 
-        /// <summary>
-        /// Overall difficulty (timing windows)
-        /// </summary>
-        public float OverallDifficulty { get; set; } = 5;
+        public float OverallDifficulty { get; set; }
 
-        /// <summary>
-        /// Approach rate (how fast circles appear)
-        /// </summary>
-        public float ApproachRate { get; set; } = 5;
+        public float ApproachRate { get; set; }
 
-        public double SliderMultiplier { get; set; } = 1.4;
+        public double SliderMultiplier { get; set; }
 
-        public double SliderTickRate { get; set; } = 1;
-
-        public override string ToString() => $"CS:{CircleSize} AR:{ApproachRate} OD:{OverallDifficulty} HP:{DrainRate}";
+        public double SliderTickRate { get; set; }
     }
 }

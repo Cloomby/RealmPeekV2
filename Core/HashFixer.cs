@@ -1,4 +1,4 @@
-using RealmPeek.Schema;
+using RealmPeek.Core.Schema;
 using Realms;
 
 namespace RealmPeek
@@ -11,8 +11,10 @@ namespace RealmPeek
             Console.WriteLine("\n--- HASH FIXER ---");
             Console.WriteLine($"Good DB:      {goodRealmPath}");
             Console.WriteLine($"Corrupted DB: {corruptedRealmPath}");
+
             // Load corrupted DB (read-only to get hashes)
             var corruptedConfig = new RealmConfiguration(corruptedRealmPath) { IsReadOnly = true, SchemaVersion = 51 };
+
             // Build hash lookup from corrupted DB
             Dictionary<int, List<SetHashInfo>> corruptedHashes;
             using (var corruptedRealm = Realm.GetInstance(corruptedConfig))
@@ -41,44 +43,54 @@ namespace RealmPeek
                                 })
                                 .ToList()
                     );
+
                 var totalSets = corruptedHashes.Sum(kvp => kvp.Value.Count);
                 var duplicates = corruptedHashes.Count(kvp => kvp.Value.Count > 1);
                 Console.WriteLine($"Loaded {totalSets} sets from corrupted DB ({duplicates} duplicate OnlineIDs).");
             }
+
             // Apply to good DB
             var goodConfig = new RealmConfiguration(goodRealmPath) { SchemaVersion = 51 };
             using (var goodRealm = Realm.GetInstance(goodConfig))
             {
                 Console.WriteLine("Applying hashes to good database...");
+
                 var setsFixed = 0;
                 var mapsFixed = 0;
                 var filesFixed = 0;
+
                 goodRealm.Write(() =>
                 {
                     var allSets = goodRealm.All<BeatmapSet>().ToList();
+
                     foreach (var set in allSets)
                     {
                         if (set.OnlineID <= 0)
                         {
                             continue;
                         }
+
                         // Find matching sets in corrupted DB
                         if (!corruptedHashes.TryGetValue(set.OnlineID, out var corruptedInfoList))
                         {
                             continue;
                         }
+
                         // Try to find best match - prefer one with matching map count
                         var corruptedInfo = corruptedInfoList.Count == 1 ? corruptedInfoList[0] : corruptedInfoList.FirstOrDefault(c => c.MapHashes.Count == set.Beatmaps.Count) ?? corruptedInfoList[0];
+
                         if (corruptedInfoList.Count > 1)
                         {
                             Console.WriteLine($"  Note: OnlineID {set.OnlineID} has {corruptedInfoList.Count} duplicates, using best match");
                         }
+
                         // Fix set hash
                         if (!string.IsNullOrEmpty(corruptedInfo.SetHash) && set.Hash != corruptedInfo.SetHash)
                         {
                             set.Hash = corruptedInfo.SetHash;
                             setsFixed++;
                         }
+
                         // Fix file hashes
                         foreach (var corruptedFile in corruptedInfo.FileHashes)
                         {
@@ -88,10 +100,10 @@ namespace RealmPeek
                                 if (matchingFile.File == null)
                                 {
                                     // Create File object if missing
-                                    var existingFile = goodRealm.Find<File>(corruptedFile.Hash);
+                                    var existingFile = goodRealm.Find<Core.Schema.File>(corruptedFile.Hash);
                                     if (existingFile == null)
                                     {
-                                        existingFile = goodRealm.Add(new File { Hash = corruptedFile.Hash });
+                                        existingFile = goodRealm.Add(new Core.Schema.File { Hash = corruptedFile.Hash });
                                     }
                                     matchingFile.File = existingFile;
                                     filesFixed++;
@@ -99,16 +111,17 @@ namespace RealmPeek
                                 else if (matchingFile.File.Hash != corruptedFile.Hash)
                                 {
                                     // Update existing File
-                                    var existingFile = goodRealm.Find<File>(corruptedFile.Hash);
+                                    var existingFile = goodRealm.Find<Core.Schema.File>(corruptedFile.Hash);
                                     if (existingFile == null)
                                     {
-                                        existingFile = goodRealm.Add(new File { Hash = corruptedFile.Hash });
+                                        existingFile = goodRealm.Add(new Core.Schema.File { Hash = corruptedFile.Hash });
                                     }
                                     matchingFile.File = existingFile;
                                     filesFixed++;
                                 }
                             }
                         }
+
                         // Fix beatmap hashes
                         foreach (var corruptedMap in corruptedInfo.MapHashes)
                         {
@@ -116,16 +129,19 @@ namespace RealmPeek
                             if (matchingMap != null)
                             {
                                 var mapChanged = false;
+
                                 if (!string.IsNullOrEmpty(corruptedMap.Hash) && matchingMap.Hash != corruptedMap.Hash)
                                 {
                                     matchingMap.Hash = corruptedMap.Hash;
                                     mapChanged = true;
                                 }
+
                                 if (!string.IsNullOrEmpty(corruptedMap.MD5Hash) && matchingMap.MD5Hash != corruptedMap.MD5Hash)
                                 {
                                     matchingMap.MD5Hash = corruptedMap.MD5Hash;
                                     mapChanged = true;
                                 }
+
                                 if (mapChanged)
                                 {
                                     mapsFixed++;
@@ -134,6 +150,7 @@ namespace RealmPeek
                         }
                     }
                 });
+
                 Console.WriteLine($"\n✅ Hash fixing complete!");
                 Console.WriteLine($"   Sets fixed:  {setsFixed}");
                 Console.WriteLine($"   Maps fixed:  {mapsFixed}");

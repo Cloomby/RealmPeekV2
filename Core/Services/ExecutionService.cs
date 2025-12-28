@@ -15,7 +15,7 @@ namespace RealmPeek.Core.Services
             File.Copy(inputPath, outputPath, overwrite: true);
 
             Console.WriteLine("Opening database for modifications...");
-            using var repo = new RealmRepository(outputPath, readOnly: false);
+            using var repo = new RealmRepository(outputPath);
 
             repo.ExecuteWrite(ctx =>
             {

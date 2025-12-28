@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using RealmPeek.Core.API;
 
 namespace RealmPeek.Core.Infrastructure
 {
@@ -8,7 +9,7 @@ namespace RealmPeek.Core.Infrastructure
     /// </summary>
     public class ApiCache
     {
-        private readonly ConcurrentDictionary<int, ApiBeatmap> _cache = new();
+        private readonly ConcurrentDictionary<int, BeatmapData> _cache = new();
         private readonly string _cacheFile;
         private readonly object _fileLock = new();
 
@@ -22,9 +23,9 @@ namespace RealmPeek.Core.Infrastructure
 
         public bool Contains(int id) => _cache.ContainsKey(id);
 
-        public void Add(int id, ApiBeatmap beatmap) => _cache.TryAdd(id, beatmap);
+        public void Add(int id, BeatmapData beatmap) => _cache.TryAdd(id, beatmap);
 
-        public bool TryGet(int id, out ApiBeatmap? beatmap) => _cache.TryGetValue(id, out beatmap);
+        public bool TryGet(int id, out BeatmapData? beatmap) => _cache.TryGetValue(id, out beatmap);
 
         public void Load()
         {
@@ -35,7 +36,7 @@ namespace RealmPeek.Core.Infrastructure
             try
             {
                 string json = File.ReadAllText(cachePath);
-                var items = JsonSerializer.Deserialize<ApiBeatmap[]>(json);
+                var items = JsonSerializer.Deserialize<BeatmapData[]>(json);
                 if (items != null)
                 {
                     foreach (var item in items)
