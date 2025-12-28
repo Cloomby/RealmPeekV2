@@ -1,0 +1,13 @@
+bin/
+obj/
+
+*.user
+*.suo
+
+docs/
+*.log
+
+.env
+
+FodyWeavers.xml
+FodyWeavers.xds
