@@ -1,4 +1,5 @@
 using dotenv.net;
+using osu.NET.Models.Users;
 using RealmPeek.Core.API;
 using RealmPeek.Core.Data;
 using RealmPeek.Core.Infrastructure;
@@ -19,6 +20,7 @@ namespace RealmPeek.CLI
         {
             DotEnv.Load();
 
+            PrintHeader();
             string mode = PromptMode();
 
             switch (mode.ToUpperInvariant())
@@ -33,6 +35,10 @@ namespace RealmPeek.CLI
 
                 case "DOWNLOAD":
                     await RunDownloadMode();
+                    break;
+
+                case "BACKFILL":
+                    RunBackfillAudit();
                     break;
 
                 default:
@@ -50,31 +56,44 @@ namespace RealmPeek.CLI
             Console.ResetColor();
         }
 
+        //static string PromptMode()
+        //{
+        //    Console.WriteLine("\nSelect mode:");
+        //    Console.WriteLine("  [ENTER]    - Normal scan & fix");
+        //    Console.WriteLine("  HASH       - Copy hashes from corrupted DB to good DB");
+        //    Console.WriteLine("  DOWNLOAD   - Download only (if downloads.txt exists)");
+        //    Console.WriteLine("  INSPECT    - Inspect a specific beatmap/set by GUID");
+        //    Console.WriteLine("  BACKFILL   - Fixes issues with date backpopulation");
+        //    Console.Write("\n> ");
+        //    return Console.ReadLine()?.Trim() ?? "";
+        //}
+
         static string PromptMode()
         {
-            Console.WriteLine("\nSelect mode:");
-            Console.WriteLine("  [ENTER]    - Normal scan & fix");
-            Console.WriteLine("  HASH       - Copy hashes from corrupted DB to good DB");
-            Console.WriteLine("  DOWNLOAD   - Download only (if downloads.txt exists)");
-            Console.WriteLine("  INSPECT    - Inspect a specific beatmap/set by GUID");
-            Console.Write("\n> ");
-            return Console.ReadLine()?.Trim() ?? "";
+            Console.WriteLine("");
+            return new UserInput<string>(
+                """
+                Select mode:
+                  [ENTER]    - Normal scan & fix
+                  HASH       - Copy hashes from corrupted DB to good DB
+                  DOWNLOAD   - Download only (if downloads.txt exists)
+                  INSPECT    - Inspect a specific beatmap/set by GUID
+                  BACKFILL   - Fixes issues with date backpopulation
+                """
+            );
         }
 
         static void RunInspectMode()
         {
             Console.WriteLine("\n--- INSPECT MODE ---");
 
-            Console.Write("Enter realm file path (or ENTER for default): ");
-            string path = Console.ReadLine()?.Trim() ?? "";
+            string path = new UserInput<string>("Enter realm file path (or ENTER for default): ");
             if (string.IsNullOrEmpty(path))
                 path = FilePathHelper.GetFullPath(REALM_FILE);
 
-            Console.Write("Enter BeatmapSet GUID (or ENTER to skip): ");
-            string setGuid = Console.ReadLine()?.Trim() ?? "";
+            string setGuid = new UserInput<string>("Enter BeatmapSet GUID (or ENTER to skip): ");
 
-            Console.Write("Enter Beatmap GUID (or ENTER to skip): ");
-            string mapGuid = Console.ReadLine()?.Trim() ?? "";
+            string mapGuid = new UserInput<string>("Enter Beatmap GUID (or ENTER to skip): ");
 
             InspectorService.Inspect(path, setGuid, mapGuid);
             WaitForExit();
@@ -84,11 +103,9 @@ namespace RealmPeek.CLI
         {
             Console.WriteLine("\n--- HASH FIX MODE ---");
 
-            Console.Write("Enter GOOD realm path: ");
-            string goodPath = Console.ReadLine()?.Trim() ?? FilePathHelper.GetFullPath(REALM_FILE);
+            string goodPath = new UserInput<string>("Enter GOOD realm path: ") ?? FilePathHelper.GetFullPath(REALM_FILE);
 
-            Console.Write("Enter CORRUPTED realm path: ");
-            string corruptedPath = Console.ReadLine()?.Trim() ?? "";
+            string corruptedPath = new UserInput<string>("Enter CORRUPTED realm path: ");
 
             if (string.IsNullOrEmpty(corruptedPath))
             {
@@ -119,6 +136,17 @@ namespace RealmPeek.CLI
             var downloader = new Downloader();
             await downloader.DownloadSetsAsync(ids);
 
+            WaitForExit();
+        }
+
+        static void RunBackfillAudit()
+        {
+            Console.WriteLine("\n--- BACKFILL MODE ---");
+
+            string logPath = new UserInput<string>("Enter log path: ");
+
+            var backfillService = new LogBackfillAuditService();
+            backfillService.StartBackfillAudit(logPath, REALM_FILE);
             WaitForExit();
         }
 
