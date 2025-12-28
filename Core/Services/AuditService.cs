@@ -1,7 +1,7 @@
 using RealmPeek.Core.API;
 using RealmPeek.Core.Infrastructure;
 using RealmPeek.Core.Models;
-using RealmPeek.Schema;
+using RealmPeek.Core.Schema;
 
 namespace RealmPeek.Core.Services
 {
@@ -10,14 +10,14 @@ namespace RealmPeek.Core.Services
     /// </summary>
     public class AuditService
     {
-        private readonly OsuApi _api;
+        private readonly OsuApiAdapter _api;
         private readonly ApiCache _cache;
         private readonly HashSet<int> _failedDownloads;
 
         private const int BATCH_SIZE = 50;
         private const int MAX_PARALLELISM = 4;
 
-        public AuditService(OsuApi api, ApiCache cache, HashSet<int> failedDownloads)
+        public AuditService(OsuApiAdapter api, ApiCache cache, HashSet<int> failedDownloads)
         {
             _api = api;
             _cache = cache;

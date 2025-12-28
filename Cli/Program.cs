@@ -9,10 +9,6 @@ namespace RealmPeek.Cli
 {
     class Program
     {
-        // Configuration constants
-        private static long CLIENT_ID;
-        private static string CLIENT_SECRET = string.Empty;
-
         const string REALM_FILE = @".\data\realm\client.realm";
         const string OUTPUT_REALM_FILE = @".\data\realm\client_modified.realm";
         const string CACHE_FILE = @".\data\api_cache.json";
@@ -22,11 +18,6 @@ namespace RealmPeek.Cli
         static async Task Main(string[] args)
         {
             DotEnv.Load();
-
-            string clientIdString = Environment.GetEnvironmentVariable("OSU_CLIENT_ID") ?? throw new InvalidOperationException("OSU_CLIENT_ID is missing from environment.");
-            CLIENT_ID = long.Parse(clientIdString);
-
-            CLIENT_SECRET = Environment.GetEnvironmentVariable("OSU_CLIENT_SECRET") ?? throw new InvalidOperationException("OSU_CLIENT_SECRET is missing from environment.");
 
             string mode = PromptMode();
 
@@ -157,7 +148,7 @@ namespace RealmPeek.Cli
                 Console.WriteLine($"Found {failedDownloads.Count} sets that failed to download (will be marked for deletion).");
 
             // Authenticate with osu! API
-            var api = new OsuApiAdapter(CLIENT_ID, CLIENT_SECRET);
+            var api = new OsuApiAdapter();
             var cache = new ApiCache(CACHE_FILE);
 
             Console.WriteLine("\nLoading API Cache...");
