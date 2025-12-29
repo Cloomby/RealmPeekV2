@@ -33,6 +33,8 @@ namespace RealmPeek.Core.Data
 
         // Set operations
         void DeleteSet(Guid id);
+
+        void DeleteBeatmap(Guid id);
         void UpdateSetStatus(Guid id, Status newStatus);
         void UpdateSetDates(Guid id, DateTimeOffset? rankedDate, DateTimeOffset? submittedDate);
 

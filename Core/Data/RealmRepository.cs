@@ -203,6 +203,16 @@ namespace RealmPeek.Core.Data
             }
         }
 
+        public void DeleteBeatmap(Guid id)
+        {
+            var beatmap = _realm.Find<Beatmap>(id);
+            if (beatmap != null)
+            {
+                _realm.Remove(beatmap);
+                _modifiedCount++;
+            }
+        }
+
         public void UpdateSetStatus(Guid id, Status newStatus)
         {
             var set = _realm.Find<BeatmapSet>(id);

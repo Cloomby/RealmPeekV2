@@ -14,6 +14,7 @@ namespace RealmPeek.CLI
         const string OUTPUT_REALM_FILE = @".\data\realm\client_modified.realm";
         const string CACHE_FILE = @".\data\cache\api_cache.json";
         const string DOWNLOAD_RESULT_FILE = @".\data\downloads\downloads.txt";
+        const string DOWNLOAD_BACKFILL_FILE = @".\data\backfill\backfill_downloads.txt";
         const string FAILED_DOWNLOADS_FILE = @".\data\downloads\failed_downloads.txt";
 
         static async Task Main(string[] args)
@@ -38,7 +39,7 @@ namespace RealmPeek.CLI
                     break;
 
                 case "BACKFILL":
-                    RunBackfillAudit();
+                    await RunBackfillAudit();
                     break;
 
                 default:
@@ -139,14 +140,14 @@ namespace RealmPeek.CLI
             WaitForExit();
         }
 
-        static void RunBackfillAudit()
+        static async Task RunBackfillAudit()
         {
             Console.WriteLine("\n--- BACKFILL MODE ---");
 
             string logPath = new UserInput<string>("Enter log path: ");
 
             var backfillService = new LogBackfillAuditService();
-            backfillService.StartBackfillAudit(logPath, REALM_FILE);
+            await backfillService.StartBackfillAudit(logPath, REALM_FILE); // Now async
             WaitForExit();
         }
 
